@@ -8,3 +8,10 @@ SmartSupply is a robust FastAPI microservice designed to transform how supply ch
 > ⚠️ **Note:** The data shown in this diagram is **synthetic (fake)** and was **generated using a Python script** for development and demonstration purposes only.
 
 <img src="smartsupply_data.png" alt="ER diagram" width="700"/>
+
+## Dataset Statistics
+The PostgreSQL database is seeded with the following synthetic data:
+*   **Products**: 22
+*   **Warehouses**: 4
+*   **Inventory Records**: 88
+*   **Movement History**: 320 records

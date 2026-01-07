@@ -10,4 +10,5 @@ Registered tables: dict_keys(['products', 'warehouses', 'inventory', 'inventory_
 '''
 
 # Create the database tables
-inventory.Base.metadata.create_all(bind=engine)
+def init_db():
+    inventory.Base.metadata.create_all(bind=engine)
