@@ -27,9 +27,11 @@ src/
     ├── models/         # SQLAlchemy ORM models
     ├── repositories/   # Data access layer (Repository Pattern)
     ├── schemas/        # Pydantic models (Data Validation)
+    ├── services/       # Business logic layer
     └── utils/          # Utility functions
 ```
 
 ### Key Components
 
+*   **Service Layer**: The core business logic resides here (e.g., `InventoryService`). It ensures data integrity (e.g., preventing negative stock), orchestrates transactions across multiple repositories, and logs all inventory movements.
 *   **Repositories**: Utilized Repository pattern (e.g., `InventoryRepository`, `ProductRepository`, `WarehouseRepository`) to abstract database operations, ensuring clean separation between business logic and data access.
