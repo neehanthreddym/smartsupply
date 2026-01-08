@@ -1,6 +1,6 @@
 """SQLAlchemy models for PostgreSQL"""
 
-from ..database.postgres import Base
+from app.database.postgres import Base
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone

@@ -4,3 +4,4 @@ fastapi
 sqlalchemy
 python-dotenv
 psycopg[binary]
+-e .
