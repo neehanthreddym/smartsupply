@@ -15,3 +15,21 @@ The PostgreSQL database is seeded with the following synthetic data:
 *   **Warehouses**: 4
 *   **Inventory Records**: 88
 *   **Movement History**: 320 records
+
+## Project Structure
+
+The project follows a clean, modular architecture:
+
+```
+src/
+└── app/
+    ├── database/       # Database connection and initialization
+    ├── models/         # SQLAlchemy ORM models
+    ├── repositories/   # Data access layer (Repository Pattern)
+    ├── schemas/        # Pydantic models (Data Validation)
+    └── utils/          # Utility functions
+```
+
+### Key Components
+
+*   **Repositories**: Utilized Repository pattern (e.g., `InventoryRepository`, `ProductRepository`, `WarehouseRepository`) to abstract database operations, ensuring clean separation between business logic and data access.
