@@ -25,6 +25,7 @@ src/
 └── app/
     ├── database/       # Database connection and initialization
     ├── models/         # SQLAlchemy ORM models
+    ├── routers/        # FastAPI routers (API Endpoints)
     ├── repositories/   # Data access layer (Repository Pattern)
     ├── schemas/        # Pydantic models (Data Validation)
     ├── services/       # Business logic layer
@@ -33,5 +34,8 @@ src/
 
 ### Key Components
 
-*   **Service Layer**: The core business logic resides here (e.g., `InventoryService`). It ensures data integrity (e.g., preventing negative stock), orchestrates transactions across multiple repositories, and logs all inventory movements.
+*   **Service Layer**: The core business logic resides here.
+    *   `InventoryService`: Ensures data integrity, orchestrates transactions, and logs movements.
+    *   `CatalogService`: Manages product and warehouse lookups.
 *   **Repositories**: Utilized Repository pattern (e.g., `InventoryRepository`, `ProductRepository`, `WarehouseRepository`) to abstract database operations, ensuring clean separation between business logic and data access.
+*   **Routers**: FastAPI routers (e.g., `catalog_router`) expose the application via RESTful API endpoints.
