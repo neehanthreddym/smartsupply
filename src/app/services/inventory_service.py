@@ -1,6 +1,6 @@
 '''
 Service Layer:
-* enforce rules
+* enforce rules and business logic
 * orchestrate multiple repositories in one transaction
 * create movement logs whenever inventory changes
 '''
@@ -9,6 +9,36 @@ from sqlalchemy.orm import Session
 from app.repositories.inventory_repository import (
     ProductRepository, WarehouseRepository, InventoryRepository, MovementRepository
 )
+
+class CatalogService:
+    """
+    Service layer for catalog operations.
+
+    Responsibilities:
+    - List products
+    - Get product by SKU
+    - List warehouses
+    - Get warehouse by name
+    """
+    def __init__(self, db: Session):
+        self.products = ProductRepository(db)
+        self.warehouses = WarehouseRepository(db)
+    
+    def list_products(self, limit: int = None):
+        """Return a list of products up to the given limit. If limit is None, return all products."""
+        return self.products.list(limit=limit)
+    
+    def get_product_by_sku(self, sku: str):
+        """Return a product by its SKU code."""
+        return self.products.get_by_sku(sku=sku)
+    
+    def list_warehouses(self, limit: int = None):
+        """Return a list of warehouses up to the given limit. If limit is None, return all warehouses."""
+        return self.warehouses.list(limit=limit)
+    
+    def get_warehouse_by_id(self, id: int):
+        """Return a warehouse by its ID."""
+        return self.warehouses.get_by_id(id=id)
 
 class InventoryService:
     """

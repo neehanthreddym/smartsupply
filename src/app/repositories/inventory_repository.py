@@ -10,7 +10,7 @@ CRUD queries for inventory (Postgres) - read/write tables
 from typing import Optional, List
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.models.inventory import Product, Warehouse, Inventory, Movement
+from app.models.inventory_models import Product, Warehouse, Inventory, Movement
 
 # -----------------------
 # Product Repository
@@ -34,9 +34,12 @@ class ProductRepository:
         """Return a product by its SKU code."""
         return self.db.query(Product).filter(Product.sku == sku).first()
 
-    def list(self, limit: int = 100) -> List[Product]:
+    def list(self, limit: int = None) -> List[Product]:
         """Return a list of products up to the given limit."""
-        return self.db.query(Product).limit(limit).all()
+        query = self.db.query(Product)
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
 
     def create(self, sku: str, name: str, category: str, unit_price: float, unit: str) -> Product:
         """
@@ -79,9 +82,12 @@ class WarehouseRepository:
         """Return a warehouse by its name."""
         return self.db.query(Warehouse).filter(Warehouse.name == name).first()
 
-    def list(self, limit: int = 100) -> List[Warehouse]:
+    def list(self, limit: int = None) -> List[Warehouse]:
         """Return a list of warehouses."""
-        return self.db.query(Warehouse).limit(limit).all()
+        query = self.db.query(Warehouse)
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
 
     def create(
         self,
