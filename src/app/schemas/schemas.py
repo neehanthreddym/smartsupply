@@ -53,3 +53,15 @@ class MovementResponse(BaseResponse):
     destination_warehouse_id: Optional[str] = None
     destination_warehouse_name: Optional[str] = None
     damage_reason: Optional[str] = None
+
+class InventoryAdjustmentRequest(BaseModel):
+    product_sku: str
+    warehouse_name: str
+    movement_type: str
+    quantity: int
+
+class InventoryTransferRequest(BaseModel):
+    product_sku: str
+    source_warehouse: str
+    destination_warehouse: str
+    quantity: int
