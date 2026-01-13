@@ -16,6 +16,12 @@ The PostgreSQL database is seeded with the following synthetic data:
 *   **Inventory Records**: 88
 *   **Movement History**: 320 records
 
+## Key Features
+- **Batch-Level Inventory**: Tracks stock by batch number to ensure traceability and expiry management.
+- **FIFO Logic**: Automatically enforces First-In-First-Out for stock deduction when no batch is specified.
+- **Catalog Management**: Full API support (`POST/GET`) for creating and managing Products and Warehouses.
+- **Movement Tracking**: Detailed logs of every inventory change (Inbound, Outbound, Transfer, Adjustments).
+
 ## Project Structure
 
 The project follows a clean, modular architecture:
@@ -23,19 +29,33 @@ The project follows a clean, modular architecture:
 ```
 src/
 └── app/
-    ├── database/       # Database connection and initialization
+    ├── database/       # Database connection
     ├── models/         # SQLAlchemy ORM models
-    ├── routers/        # FastAPI routers (API Endpoints)
-    ├── repositories/   # Data access layer (Repository Pattern)
-    ├── schemas/        # Pydantic models (Data Validation)
-    ├── services/       # Business logic layer
-    └── utils/          # Utility functions
+    ├── routers/        # API Endpoints (Catalog, Inventory, Movement)
+    ├── repositories/   # Data access layer
+    ├── schemas/        # Pydantic validation models
+    ├── services/       # Business logic (SupplyService)
+    └── utils/          # Utilities
 ```
 
 ### Key Components
 
-*   **Service Layer**: The core business logic resides here.
-    *   `InventoryService`: Ensures data integrity, orchestrates transactions, and logs movements.
-    *   `CatalogService`: Manages product and warehouse lookups.
-*   **Repositories**: Utilized Repository pattern (e.g., `InventoryRepository`, `ProductRepository`, `WarehouseRepository`) to abstract database operations, ensuring clean separation between business logic and data access.
-*   **Routers**: FastAPI routers (e.g., `catalog_router`) expose the application via RESTful API endpoints.
+*   **Service Layer**: The core business logic residing in `supply_service.py`.
+    *   `InventoryService`: Handles stock movements, FIFO logic, and batch validation.
+    *   `CatalogService`: Manages product creation and warehouse lookups.
+*   **Routers**:
+    *   `catalog_router`: Manage Products and Warehouses.
+    *   `inventory_router`: Query stock levels.
+    *   `movement_router`: Execute transfers and adjustments.
+
+## How to Run
+
+1.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+2.  **Start the Server**:
+    ```bash
+    uvicorn main:app --reload
+    ```
+    The API will be available at `http://localhost:8000`. API Docs at `http://localhost:8000/docs`.
