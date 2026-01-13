@@ -74,7 +74,7 @@ class WarehouseRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_id(self, warehouse_id: int) -> Optional[Warehouse]:
+    def get_by_id(self, warehouse_id: str) -> Optional[Warehouse]:
         """Return a warehouse by its ID."""
         return self.db.query(Warehouse).filter(Warehouse.id == warehouse_id).first()
 
@@ -122,19 +122,27 @@ class InventoryRepository:
     
     def create_row(
         self,
-        product_id: int,
-        warehouse_id: int,
+        product: Product,
+        warehouse: Warehouse,
         quantity: int = 0,
         reorder_level: Optional[int] = None,
         safety_stock: Optional[int] = None,
+        batch_number: Optional[str] = None,
     ) -> Inventory:
-        """Create a new inventory row for a product in a warehouse."""
+        """
+        Create a new inventory row for a product in a warehouse.
+        Populates denormalized fields (names, SKU) for easier reading.
+        """
         row = Inventory(
-            product_id=product_id,
-            warehouse_id=warehouse_id,
+            product_id=product.id,
+            warehouse_id=warehouse.id,
+            product_sku=product.sku,
+            product_name=product.name,
+            warehouse_name=warehouse.name,
             quantity=int(quantity),
             reorder_level=reorder_level,
             safety_stock=safety_stock,
+            batch_number=batch_number,
         )
         self.db.add(row)
         self.db.flush()
@@ -145,49 +153,85 @@ class InventoryRepository:
         warehouse = self.db.query(Warehouse).filter(Warehouse.name == warehouse_name).first()
         return product, warehouse
 
-    def get_row(self, product_sku: str, warehouse_name: str) -> Optional[Inventory]:
-        """Return the inventory row for a product in a specific warehouse."""
+    def get_row(self, product_sku: str, warehouse_name: str, batch_number: Optional[str] = None) -> Optional[Inventory]:
+        """Return the inventory row for a product in a specific warehouse, optionally filtered by batch."""
         product, warehouse = self._get_product_and_warehouse(product_sku, warehouse_name)
         if not product or not warehouse:
             return None
 
+        q = self.db.query(Inventory).filter(
+            Inventory.product_id == product.id, 
+            Inventory.warehouse_id == warehouse.id
+        )
+        
+        if batch_number is not None:
+             q = q.filter(Inventory.batch_number == batch_number)
+        
+        return q.first()
+
+    def get_stock(self, product_sku: str, warehouse_name: str) -> Optional[int]:
+        """Return the TOTAL stock quantity for a product in a warehouse (sum of all batches)."""
+        rows = self.get_all_product_stock_in_warehouse(product_sku, warehouse_name)
+        if not rows:
+            return None
+        return sum(r.quantity for r in rows)
+
+    def get_all_product_stock_in_warehouse(self, product_sku: str, warehouse_name: str) -> List[Inventory]:
+        """Return all batches for a product in a warehouse."""
+        product, warehouse = self._get_product_and_warehouse(product_sku, warehouse_name)
         return (
             self.db.query(Inventory)
             .filter(Inventory.product_id == product.id, Inventory.warehouse_id == warehouse.id)
-            .first()
+            .all()
         )
 
-    def get_stock(self, product_sku: str, warehouse_name: str) -> Optional[int]:
-        """Return the stock quantity for a product in a warehouse."""
-        row = self.get_row(product_sku, warehouse_name)
-        return row.quantity if row else None
+    def get_all_product_stock(self, product_sku: str) -> List[Inventory]:
+        """Return all inventory rows for a product across all warehouses."""
+        return (
+            self.db.query(Inventory)
+            .filter(Inventory.product_sku == product_sku)
+            .all()
+        )
 
-    def set_stock(self, product_sku: str, warehouse_name: str, new_quantity: int) -> Optional[Inventory]:
+    def set_stock(self, product_sku: str, warehouse_name: str, new_quantity: int, batch_number: Optional[str] = None) -> Optional[Inventory]:
         """
-        Set inventory to an exact quantity.
-        Use for audits or corrections.
+        Set inventory to an exact quantity for a specific batch.
+        Auto-creates row if missing.
+        Does NOT affect different batches.
         """
-        row = self.get_row(product_sku, warehouse_name)
+        row = self.get_row(product_sku, warehouse_name, batch_number)
         if not row:
-            return None
-        row.quantity = int(new_quantity)
-        if hasattr(row, "last_updated"):
-            row.last_updated = datetime.utcnow()
-        self.db.flush()
+            product, warehouse = self._get_product_and_warehouse(product_sku, warehouse_name)
+            if not product or not warehouse:
+                return None
+            row = self.create_row(product, warehouse, quantity=new_quantity, batch_number=batch_number)
+        else:
+            row.quantity = int(new_quantity)
+            if hasattr(row, "last_updated"):
+                row.last_updated = datetime.utcnow()
+            self.db.flush()
         return row
 
-    def add_stock(self, product_sku: str, warehouse_name: str, delta: int) -> Optional[Inventory]:
+    def add_stock(self, product_sku: str, warehouse_name: str, delta: int, batch_number: Optional[str] = None) -> Optional[Inventory]:
         """
-        Adds/removes inventory.
-        NOTE: business rules like "no negative stock" handled in Service layer.
+        Adds/removes inventory for a specific batch.
+        Auto-creates row if missing (e.g. first inbound shipment).
         """
-        row = self.get_row(product_sku, warehouse_name)
+        product, warehouse = self._get_product_and_warehouse(product_sku, warehouse_name)
+        if not product or not warehouse:
+             return None
+
+        row = self.get_row(product_sku, warehouse_name, batch_number)
+        
         if not row:
-            return None
-        row.quantity = int(row.quantity) + int(delta)
-        if hasattr(row, "last_updated"):
-            row.last_updated = datetime.utcnow()
-        self.db.flush()
+            # Create new row
+            row = self.create_row(product, warehouse, quantity=delta, batch_number=batch_number)
+        else:
+            row.quantity = int(row.quantity) + int(delta)
+            if hasattr(row, "last_updated"):
+                row.last_updated = datetime.utcnow()
+            self.db.flush()
+            
         return row
 
     def list_low_stock(self, limit: int = 100) -> List[Inventory]:
@@ -202,7 +246,7 @@ class InventoryRepository:
 
         return q.limit(limit).all()
 
-    def list_by_warehouse(self, warehouse_id: int, limit: int = 100) -> List[Inventory]:
+    def list_by_warehouse(self, warehouse_id: str, limit: int = 100) -> List[Inventory]:
         """Return all inventory rows for a warehouse."""
         return (
             self.db.query(Inventory)
@@ -228,7 +272,12 @@ class MovementRepository:
         unit_price: Optional[float] = None,
         reference_number: Optional[str] = None,
         destination_warehouse_id: Optional[int] = None,
+        destination_warehouse_name: Optional[str] = None,
         timestamp: Optional[datetime] = None,
+        damage_reason: Optional[str] = None,
+        before_quantity: Optional[int] = None,
+        after_quantity: Optional[int] = None,
+        batch_number: Optional[str] = None,
     ) -> Movement:
         """
         Create a movement record (inbound, outbound, transfer, adjustment).
@@ -238,16 +287,34 @@ class MovementRepository:
         if unit_price is not None:
             total_value = float(unit_price) * int(quantity)
 
+        # distinct fetches for denormalized data
+        prod = self.db.query(Product).get(product_id)
+        wh = self.db.query(Warehouse).get(warehouse_id)
+        
+        dest_wh_name = destination_warehouse_name
+        if not dest_wh_name and destination_warehouse_id:
+             dest_wh = self.db.query(Warehouse).get(destination_warehouse_id)
+             if dest_wh:
+                 dest_wh_name = dest_wh.name
+
         m = Movement(
             product_id=product_id,
+            product_sku=prod.sku if prod else None,
+            product_name=prod.name if prod else None,
             warehouse_id=warehouse_id,
+            warehouse_name=wh.name if wh else None,
             movement_type=movement_type,
             quantity=int(quantity),
             unit_price=unit_price,
             total_value=total_value,
             reference_number=reference_number,
             destination_warehouse_id=destination_warehouse_id,
+            destination_warehouse_name=dest_wh_name,
             timestamp=timestamp or datetime.utcnow(),
+            damage_reason=damage_reason,
+            before_quantity=before_quantity,
+            after_quantity=after_quantity,
+            batch_number=batch_number,
         )
         self.db.add(m)
         self.db.flush()

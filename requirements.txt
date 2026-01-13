@@ -3,5 +3,6 @@ pandas
 fastapi
 sqlalchemy
 python-dotenv
+uvicorn
 psycopg[binary]
 -e .

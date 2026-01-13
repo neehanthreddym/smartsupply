@@ -23,7 +23,7 @@ from pathlib import Path
 import traceback
 from app.database.init_db import init_db
 from app.database.postgres import SessionLocal
-from app.models.inventory import Product, Warehouse, Inventory, Movement
+from app.models.inventory_models import Product, Warehouse, Inventory, Movement
 
 # Read the json file
 filepath = Path('data/json/smartsupply_data.json')

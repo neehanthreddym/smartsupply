@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Query
-from typing import Dict
+from typing import Dict, Optional, List
 from sqlalchemy.orm import Session
 
-from app.schemas.schemas import InventoryAdjustmentRequest, InventoryTransferRequest
-from app.services.inventory_service import InventoryService
+from app.schemas.schemas import InventoryResponse
+from app.services.supply_service import InventoryService
 from app.database.postgres import get_db
 
 router = APIRouter(
@@ -14,7 +14,7 @@ router = APIRouter(
 @router.get("/stock", response_model=int)
 def get_stock(
     sku: str = Query(..., description="Product SKU"),
-    warehouse_name: str = Query(..., description="Warehouse Name"),
+    warehouse_name: Optional[str] = Query(None, description="Warehouse Name"),
     db: Session = Depends(get_db)
 ):
     """
@@ -29,48 +29,23 @@ def get_stock(
             detail=str(e)
         )
 
-@router.post("/adjustments", response_model=int)
-def adjust_stock(
-    request: InventoryAdjustmentRequest,
+@router.get("/details", response_model=List[InventoryResponse])
+def get_inventory_details(
+    sku: str = Query(..., description="Product SKU"),
+    warehouse_name: Optional[str] = Query(None, description="Warehouse Name"),
     db: Session = Depends(get_db)
 ):
     """
-    Adjust inventory stock (inbound/outbound/damage/adjust).
-    Returns the new quantity.
+    Get full inventory details + denormalized info.
     """
     service = InventoryService(db=db)
     try:
-        return service.move_stock(
-            product_sku=request.product_sku,
-            warehouse_name=request.warehouse_name,
-            movement_type=request.movement_type,
-            quantity=request.quantity
-        )
+        result = service.get_inventory_record(product_sku=sku, warehouse_name=warehouse_name)
+        if isinstance(result, list):
+            return result
+        return [result]
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail=str(e)
-        )
-
-@router.post("/transfers", response_model=Dict[str, int])
-def transfer_stock(
-    request: InventoryTransferRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Transfer stock between two warehouses.
-    Returns the new quantities for source and destination.
-    """
-    service = InventoryService(db=db)
-    try:
-        return service.transfer_stock(
-            product_sku=request.product_sku,
-            source_wh=request.source_warehouse,
-            dest_wh=request.destination_warehouse,
-            quantity=request.quantity
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND, 
             detail=str(e)
         )

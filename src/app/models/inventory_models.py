@@ -36,6 +36,7 @@ class Inventory(Base):
     last_updated = Column(DateTime, 
                           default=lambda: datetime.now(timezone.utc),
                           onupdate=lambda: datetime.now(timezone.utc))
+    batch_number = Column(String, nullable=True)
 
     # Relationships
     product = relationship("Product", back_populates="inventory_items")
@@ -54,11 +55,14 @@ class Movement(Base):
     quantity = Column(Integer)
     unit_price = Column(Float)
     total_value = Column(Float)
+    before_quantity = Column(Integer, nullable=True)
+    after_quantity = Column(Integer, nullable=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     reference_number = Column(String)
     destination_warehouse_id = Column(String, ForeignKey('warehouses.id'), nullable=True)
     destination_warehouse_name = Column(String, nullable=True)
     damage_reason = Column(String, nullable=True)
+    batch_number = Column(String, nullable=True)
 
     # Relationships
     product = relationship("Product", back_populates="movements")
