@@ -9,4 +9,6 @@ python-jose[cryptography]
 bcrypt
 python-multipart
 pyjwt
+pymongo
+pymongo[srv]
 -e .

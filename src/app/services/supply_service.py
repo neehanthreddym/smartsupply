@@ -11,6 +11,7 @@ from app.repositories.inventory_repository import (
 )
 from typing import Optional
 from datetime import datetime
+from app.services.log_service import LogService
 
 class CatalogService:
     """
@@ -40,7 +41,15 @@ class CatalogService:
         if existing:
             raise ValueError(f"Product with SKU '{sku}' already exists.")
         
-        return self.products.create(sku=sku, name=name, category=category, unit_price=unit_price, unit=unit)
+        new_product = self.products.create(sku=sku, name=name, category=category, unit_price=unit_price, unit=unit)
+        
+        LogService.log_catalog_event(
+            entity_type="product",
+            entity_id=sku,
+            action="create",
+            details={"name": name, "category": category, "unit_price": unit_price, "unit": unit}
+        )
+        return new_product
     
     def list_warehouses(self, limit: int = None):
         """Return a list of warehouses up to the given limit. If limit is None, return all warehouses."""
@@ -56,7 +65,15 @@ class CatalogService:
         if existing:
             raise ValueError(f"Warehouse with name '{name}' already exists at {existing.region} {existing.location}.")
         
-        return self.warehouses.create(name=name, location=location, region=region, capacity=capacity, latitude=latitude, longitude=longitude)
+        new_wh = self.warehouses.create(name=name, location=location, region=region, capacity=capacity, latitude=latitude, longitude=longitude)
+
+        LogService.log_catalog_event(
+            entity_type="warehouse",
+            entity_id=name,
+            action="create",
+            details={"location": location, "region": region, "capacity": capacity}
+        )
+        return new_wh
 
 class InventoryService:
     """
@@ -195,6 +212,16 @@ class InventoryService:
              )
              self.db.commit()
              self.db.refresh(m)
+
+             LogService.log_inventory_event(
+                 action_type=movement_type,
+                 product_sku=product_sku,
+                 quantity_change=quantity,
+                 before_quantity=m.before_quantity,
+                 after_quantity=m.after_quantity,
+                 warehouse_name=warehouse_name,
+                 reference_id=str(m.id)
+             )
              return m
 
         else:
@@ -232,6 +259,16 @@ class InventoryService:
                 )
                 movements_created.append(m)
 
+                LogService.log_inventory_event(
+                    action_type=movement_type,
+                    product_sku=product_sku,
+                    quantity_change=-qty_to_remove,
+                    before_quantity=m.before_quantity,
+                    after_quantity=m.after_quantity,
+                    warehouse_name=warehouse_name,
+                    reference_id=str(m.id)
+                )
+
             else:
                 # FIFO Deduction
                 rows = self.inventory.get_all_product_stock_in_warehouse(product_sku, warehouse_name)
@@ -267,6 +304,16 @@ class InventoryService:
                         batch_number=r.batch_number,
                     )
                     movements_created.append(m)
+                    
+                    LogService.log_inventory_event(
+                        action_type=movement_type,
+                        product_sku=product_sku,
+                        quantity_change=-deduct,
+                        before_quantity=m.before_quantity,
+                        after_quantity=m.after_quantity,
+                        warehouse_name=warehouse_name,
+                        reference_id=str(m.id)
+                    )
                     
                     remaining -= deduct
                 
@@ -369,7 +416,7 @@ class InventoryService:
             if not dst_row:
                  raise ValueError("Destination inventory row missing")
 
-            # 3. Log Movements
+            # 3. Create Postgres Movements
             src_after = int(src_row.quantity)
             src_before = src_after + qty
             
@@ -393,7 +440,7 @@ class InventoryService:
             dst_before = dst_after - qty
 
             # Record 2: Destination (Transfer In)
-            self.movements.create_movement(
+            m_in = self.movements.create_movement(
                 product_id=product.id,
                 warehouse_id=dst.id,
                 movement_type="transfer_in",
@@ -406,6 +453,31 @@ class InventoryService:
                 after_quantity=dst_after,
                 batch_number=batch_id,
             )
+
+            # 4. Flush to generate IDs for logging
+            self.db.flush()
+
+            # 5. Log Events to MongoDB
+            LogService.log_inventory_event(
+                action_type="transfer_out",
+                product_sku=product_sku,
+                quantity_change=-qty,
+                before_quantity=src_before,
+                after_quantity=src_after,
+                warehouse_name=source_wh,
+                reference_id=str(m_out.id)
+            )
+
+            LogService.log_inventory_event(
+                action_type="transfer_in",
+                product_sku=product_sku,
+                quantity_change=qty,
+                before_quantity=dst_before,
+                after_quantity=dst_after,
+                warehouse_name=dest_wh,
+                reference_id=str(m_in.id)
+            )
+
 
         self.db.commit()
         if transfers_out:
