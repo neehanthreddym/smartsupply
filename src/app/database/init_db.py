@@ -1,4 +1,4 @@
-from app.models import inventory_models
+from app.models import inventory_models, user_models
 from app.database.postgres import engine
 
 print("Base object:", inventory_models.Base)

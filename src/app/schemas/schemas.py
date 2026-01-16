@@ -5,11 +5,12 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
-class BaseResponse(BaseModel):
+class Base(BaseModel):
     class Config:
         from_attributes = True
 
-class ProductResponse(BaseResponse):
+# ---------- Inventory schemas ----------
+class ProductResponse(Base):
     id: str
     sku: str
     name: str
@@ -17,7 +18,7 @@ class ProductResponse(BaseResponse):
     unit_price: float
     unit: str
 
-class WarehouseResponse(BaseResponse):
+class WarehouseResponse(Base):
     id: str
     name: str
     location: Optional[str] = None
@@ -25,7 +26,7 @@ class WarehouseResponse(BaseResponse):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
-class InventoryResponse(BaseResponse):
+class InventoryResponse(Base):
     id: str
     product_id: str
     product_sku: str
@@ -38,7 +39,7 @@ class InventoryResponse(BaseResponse):
     last_updated: Optional[datetime] = None
     batch_number: Optional[str] = None
 
-class MovementResponse(BaseResponse):
+class MovementResponse(Base):
     id: str
     product_id: str
     product_sku: str
@@ -56,7 +57,7 @@ class MovementResponse(BaseResponse):
     damage_reason: Optional[str] = None
     batch_number: Optional[str] = None
 
-class InventoryAdjustmentRequest(BaseModel):
+class InventoryAdjustmentRequest(Base):
     product_sku: str
     warehouse_name: str
     movement_type: str
@@ -65,7 +66,7 @@ class InventoryAdjustmentRequest(BaseModel):
     damage_reason: Optional[str] = None
     batch_number: Optional[str] = None
 
-class InventoryTransferRequest(BaseModel):
+class InventoryTransferRequest(Base):
     product_sku: str
     source_warehouse: str
     destination_warehouse: str
@@ -73,17 +74,35 @@ class InventoryTransferRequest(BaseModel):
     reference_number: Optional[str] = None
     batch_number: Optional[str] = None
 
-class ProductCreateRequest(BaseModel):
+class ProductCreateRequest(Base):
     sku: str
     name: str
     category: str
     unit_price: float
     unit: str
 
-class WarehouseCreateRequest(BaseModel):
+class WarehouseCreateRequest(Base):
     name: str
     location: str
     region: str
     capacity: int
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+
+# ---------- Authentication schemas ----------
+class Token(Base):
+    access_token: str
+    token_type: str
+
+# ---------- User schemas ----------
+class UserResponse(Base):
+    id: str
+    email: str
+    full_name: Optional[str] = None
+    role: str
+    is_active: bool
+
+class UserCreate(Base):
+    email: str
+    password: str
+    full_name: Optional[str] = None

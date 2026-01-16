@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Query
+from app.dependencies import get_current_active_user
 from typing import Dict, Optional, List
 from sqlalchemy.orm import Session
 
@@ -15,7 +16,8 @@ router = APIRouter(
 def get_stock(
     sku: str = Query(..., description="Product SKU"),
     warehouse_name: Optional[str] = Query(None, description="Warehouse Name"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     """
     Get the current stock of a product in a specific warehouse.
@@ -33,7 +35,8 @@ def get_stock(
 def get_inventory_details(
     sku: str = Query(..., description="Product SKU"),
     warehouse_name: Optional[str] = Query(None, description="Warehouse Name"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     """
     Get full inventory details + denormalized info.

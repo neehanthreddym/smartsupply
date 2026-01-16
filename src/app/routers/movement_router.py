@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException
+from app.dependencies import get_current_active_user
 
 from sqlalchemy.orm import Session
 
@@ -14,7 +15,8 @@ router = APIRouter(
 @router.post("/adjustments", response_model=MovementResponse)
 def adjust_stock(
     request: InventoryAdjustmentRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     """
     Adjust inventory stock (inbound/outbound/damage/adjust).
@@ -40,7 +42,8 @@ def adjust_stock(
 @router.post("/transfers", response_model=MovementResponse)
 def transfer_stock(
     request: InventoryTransferRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
     """
     Transfer stock between two warehouses.

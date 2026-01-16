@@ -5,4 +5,8 @@ sqlalchemy
 python-dotenv
 uvicorn
 psycopg[binary]
+python-jose[cryptography]
+bcrypt
+python-multipart
+pyjwt
 -e .

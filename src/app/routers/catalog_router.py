@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException
+from app.dependencies import get_current_active_user
 from typing import List
 from sqlalchemy.orm import Session
 
@@ -14,7 +15,7 @@ router = APIRouter(
 )
 
 @router.get("/products", response_model=List[ProductResponse])
-def list_products(limit: int = None, db: Session = Depends(get_db)):
+def list_products(limit: int = None, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Retireve a list of products from the catalog.
     
@@ -30,7 +31,7 @@ def list_products(limit: int = None, db: Session = Depends(get_db)):
     return products
 
 @router.get("/products/{sku}", response_model=ProductResponse)
-def get_product_by_sku(sku: str, db: Session = Depends(get_db)):
+def get_product_by_sku(sku: str, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Retrieve a product by its SKU code.
 
@@ -48,7 +49,7 @@ def get_product_by_sku(sku: str, db: Session = Depends(get_db)):
     return product
 
 @router.post("/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-def create_product(product: ProductCreateRequest, db: Session = Depends(get_db)):
+def create_product(product: ProductCreateRequest, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Create a new product in the catalog.
     """
@@ -66,7 +67,7 @@ def create_product(product: ProductCreateRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 @router.get("/warehouses", response_model=List[WarehouseResponse])
-def list_warehouses(limit: int = None, db: Session = Depends(get_db)):
+def list_warehouses(limit: int = None, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Return a list of warehouses.
 
@@ -79,7 +80,7 @@ def list_warehouses(limit: int = None, db: Session = Depends(get_db)):
     return warehouses
 
 @router.get("/warehouses/{warehouse_id}", response_model=WarehouseResponse)
-def get_warehouse_by_id(warehouse_id: str, db: Session = Depends(get_db)):
+def get_warehouse_by_id(warehouse_id: str, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Retireve a warehouse by its ID.
 
@@ -97,7 +98,7 @@ def get_warehouse_by_id(warehouse_id: str, db: Session = Depends(get_db)):
     return warehouse
 
 @router.post("/warehouses", response_model=WarehouseResponse, status_code=status.HTTP_201_CREATED)
-def create_warehouse(warehouse: WarehouseCreateRequest, db: Session = Depends(get_db)):
+def create_warehouse(warehouse: WarehouseCreateRequest, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Create a new warehouse via API.
     """

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 import uvicorn
-from app.routers import catalog_router, inventory_router, movement_router
+from app.routers import catalog_router, inventory_router, movement_router, auth_router, user_router
 
 app = FastAPI(
     title="SmartSupply API",
@@ -11,6 +11,8 @@ app = FastAPI(
 app.include_router(catalog_router.router)
 app.include_router(inventory_router.router)
 app.include_router(movement_router.router)
+app.include_router(auth_router.router)
+app.include_router(user_router.router)
 
 @app.get("/")
 def root():
