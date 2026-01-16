@@ -22,6 +22,17 @@ The PostgreSQL database is seeded with the following synthetic data:
 - **FIFO Logic**: Automatically enforces First-In-First-Out for stock deduction when no batch is specified.
 - **Catalog Management**: Full API support (`POST/GET`) for creating and managing Products and Warehouses.
 - **Movement Tracking**: Detailed logs of every inventory change (Inbound, Outbound, Transfer, Adjustments).
+- **Event Logging (MongoDB)**: Immutable audit logs for all state-changing operations and conversation history.
+
+## Hybrid Database Architecture
+
+SmartSupply uses **PostgreSQL** as the "Source of Truth" for current state (Inventory, Users) and **MongoDB** as the "System of Record" for history (Audit Logs).
+
+### MongoDB Collections
+1.  **`conversation_logs`**: Traces User <-> Agent interactions (Intent, Tool Selection, Result).
+2.  **`audit_logs`**: Immutable record of all inventory and catalog changes.
+    *   **Traceability**: Every batch movement is logged strictly with `before` and `after` quantities.
+    *   **Scope**: Covers `create_product`, `create_warehouse`, `inbound`, `outbound`, `transfer`, and `damage` events.
 
 ## Project Structure
 
@@ -49,6 +60,7 @@ src/
 *   **Service Layer**: The core business logic residing in `supply_service.py`.
     *   `InventoryService`: Handles stock movements, FIFO logic, and batch validation.
     *   `CatalogService`: Manages product creation and warehouse lookups.
+    *   `LogService`: Write-only service that safely pushes immutable events to MongoDB.
 *   **Routers**:
     *   `catalog_router`: Manage Products and Warehouses (Protected).
     *   `inventory_router`: Query stock levels (Protected).
