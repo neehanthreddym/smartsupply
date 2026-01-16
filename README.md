@@ -17,6 +17,7 @@ The PostgreSQL database is seeded with the following synthetic data:
 *   **Movement History**: 320 records
 
 ## Key Features
+- **Secure Access**: User Authentication via OAuth2 (JWT) with password hashing.
 - **Batch-Level Inventory**: Tracks stock by batch number to ensure traceability and expiry management.
 - **FIFO Logic**: Automatically enforces First-In-First-Out for stock deduction when no batch is specified.
 - **Catalog Management**: Full API support (`POST/GET`) for creating and managing Products and Warehouses.
@@ -29,9 +30,10 @@ The project follows a clean, modular architecture:
 ```
 src/
 └── app/
+    ├── core/           # Security & Config (JWT, Hashing)
     ├── database/       # Database connection
-    ├── models/         # SQLAlchemy ORM models
-    ├── routers/        # API Endpoints (Catalog, Inventory, Movement)
+    ├── models/         # SQLAlchemy ORM models (User, Inventory, etc.)
+    ├── routers/        # API Endpoints (Auth, User, Catalog, Inventory, Movement)
     ├── repositories/   # Data access layer
     ├── schemas/        # Pydantic validation models
     ├── services/       # Business logic (SupplyService)
@@ -40,13 +42,17 @@ src/
 
 ### Key Components
 
+*   **Security Layer**:
+    *   `auth_router`: Handles Login (`/login`) and Registration (`/register`).
+    *   `security.py`: Manages JWT creation and `bcrypt` password hashing.
+    *   `dependencies.py`: Provides `get_current_active_user` to specific protect routes.
 *   **Service Layer**: The core business logic residing in `supply_service.py`.
     *   `InventoryService`: Handles stock movements, FIFO logic, and batch validation.
     *   `CatalogService`: Manages product creation and warehouse lookups.
 *   **Routers**:
-    *   `catalog_router`: Manage Products and Warehouses.
-    *   `inventory_router`: Query stock levels.
-    *   `movement_router`: Execute transfers and adjustments.
+    *   `catalog_router`: Manage Products and Warehouses (Protected).
+    *   `inventory_router`: Query stock levels (Protected).
+    *   `movement_router`: Execute transfers and adjustments (Protected).
 
 ## How to Run
 
@@ -59,3 +65,8 @@ src/
     uvicorn main:app --reload
     ```
     The API will be available at `http://localhost:8000`. API Docs at `http://localhost:8000/docs`.
+
+### Authentication Usage
+1.  **Register**: POST to `/register` with email and password.
+2.  **Login**: POST to `/login` (form-data) to get a Bearer Token.
+3.  **Access API**: Include the token in the `Authorization` header (`Bearer <token>`) for all Inventory/Catalog requests.
