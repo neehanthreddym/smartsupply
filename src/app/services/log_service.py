@@ -5,12 +5,22 @@ import sys
 
 class LogService:
     @staticmethod
-    def log_conversation_event(user_input: str, detected_intent: str, tool_chosen: str, tool_arguments: dict, tool_result_summary: str, status: str = "success", conversation_id: str = None):
+    def log_conversation_event(
+        user_input: str, 
+        detected_intent: str, 
+        tool_chosen: str, 
+        tool_arguments: dict, 
+        tool_result_summary: str, 
+        request_id: str,
+        status: str = "success", 
+        conversation_id: str = None,
+    ):
         """
         Logs a user-agent interaction.
         """
         event = {
             "conversation_id": conversation_id or str(uuid.uuid4()),
+            "request_id": request_id,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "user_input": user_input,
             "detected_intent": detected_intent,
@@ -26,12 +36,22 @@ class LogService:
             print(f"FAILED TO LOG CONVERSATION EVENT: {e}", file=sys.stderr)
 
     @staticmethod
-    def log_inventory_event(action_type: str, product_sku: str, quantity_change: int, before_quantity: int, after_quantity: int, warehouse_name: str, reference_id: str = None):
+    def log_inventory_event(
+        action_type: str, 
+        product_sku: str, 
+        quantity_change: int, 
+        before_quantity: int, 
+        after_quantity: int, 
+        warehouse_name: str, 
+        request_id: str,
+        reference_id: str = None,
+    ):
         """
         Logs an inventory change (immutable audit record).
         """
         event = {
             "event_id": str(uuid.uuid4()),
+            "request_id": request_id,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "action_type": action_type,
             "product_sku": product_sku,
@@ -47,11 +67,12 @@ class LogService:
             print(f"FAILED TO LOG INVENTORY EVENT: {e}", file=sys.stderr)
 
     @staticmethod
-    def log_error(context: str, error_message: str):
+    def log_error(context: str, error_message: str, request_id: str):
         """
         Generic error logger.
         """
         event = {
+             "request_id": request_id,
              "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
              "type": "ERROR",
              "context": context,
@@ -64,12 +85,19 @@ class LogService:
             print(f"FAILED TO LOG ERROR: {e}", file=sys.stderr)
 
     @staticmethod
-    def log_catalog_event(entity_type: str, entity_id: str, action: str, details: dict):
+    def log_catalog_event(
+        entity_type: str, 
+        entity_id: str, 
+        action: str, 
+        details: dict, 
+        request_id: str
+    ):
         """
         Logs a catalog change (product/warehouse creation).
         """
         event = {
             "event_id": str(uuid.uuid4()),
+            "request_id": request_id,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "action_type": f"create_{entity_type}",
             "entity_type": entity_type,

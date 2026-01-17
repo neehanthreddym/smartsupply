@@ -23,7 +23,8 @@ class CatalogService:
     - List warehouses
     - Get warehouse by name
     """
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, request_id: str):
+        self.request_id = request_id
         self.products = ProductRepository(db)
         self.warehouses = WarehouseRepository(db)
     
@@ -47,7 +48,8 @@ class CatalogService:
             entity_type="product",
             entity_id=sku,
             action="create",
-            details={"name": name, "category": category, "unit_price": unit_price, "unit": unit}
+            details={"name": name, "category": category, "unit_price": unit_price, "unit": unit},
+            request_id=self.request_id
         )
         return new_product
     
@@ -71,7 +73,8 @@ class CatalogService:
             entity_type="warehouse",
             entity_id=name,
             action="create",
-            details={"location": location, "region": region, "capacity": capacity}
+            details={"location": location, "region": region, "capacity": capacity},
+            request_id=self.request_id
         )
         return new_wh
 
@@ -86,7 +89,7 @@ class InventoryService:
 
     It coordinates multiple repositories and controls transactions.
     """
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, request_id: str):
         """
         Initialize the service with a database session.
 
@@ -94,6 +97,7 @@ class InventoryService:
         share the same transaction context.
         """
         self.db = db
+        self.request_id = request_id
         self.products = ProductRepository(db)
         self.warehouses = WarehouseRepository(db)
         self.inventory = InventoryRepository(db)
@@ -149,6 +153,66 @@ class InventoryService:
             return []
             
         return rows
+
+    def get_low_stock(self, limit: int = 100):
+        """
+        Return inventory items that are below their reorder or safety stock levels.
+        
+        Useful for queries like:
+        - "What products need reordering?"
+        - "Show me low stock items"
+        - "Which items are running low?"
+
+        Returns:
+            List of Inventory objects where quantity <= reorder_level or quantity <= safety_stock
+        """
+        return self.inventory.list_low_stock(limit=limit)
+
+    def get_movements_by_sku(self, product_sku: str, limit: int = 100):
+        """
+        Return recent movements for a product using its SKU.
+        
+        This is a wrapper that resolves SKU to product_id
+        before querying the movement repository.
+
+        Args:
+            product_sku: The SKU of the product to query.
+            limit: Maximum number of movements to return.
+
+        Returns:
+            List of Movement objects, ordered by timestamp descending.
+
+        Raises:
+            ValueError: If the product SKU is not found.
+        """
+        product = self.products.get_by_sku(product_sku)
+        if not product:
+            raise ValueError(f"Product '{product_sku}' not found.")
+        
+        return self.movements.list_by_product(product.id, limit=limit)
+
+    def get_movements_by_warehouse(self, warehouse_name: str, limit: int = 100):
+        """
+        Return recent movements for a warehouse using its name.
+        
+        This is a wrapper that resolves warehouse name to ID
+        before querying the movement repository.
+
+        Args:
+            warehouse_name: The name of the warehouse to query.
+            limit: Maximum number of movements to return.
+
+        Returns:
+            List of Movement objects, ordered by timestamp descending.
+
+        Raises:
+            ValueError: If the warehouse name is not found.
+        """
+        warehouse = self.warehouses.get_by_name(warehouse_name)
+        if not warehouse:
+            raise ValueError(f"Warehouse '{warehouse_name}' not found.")
+        
+        return self.movements.list_by_warehouse(warehouse.id, limit=limit)
 
     def move_stock(self, 
         product_sku: str, 
@@ -220,7 +284,8 @@ class InventoryService:
                  before_quantity=m.before_quantity,
                  after_quantity=m.after_quantity,
                  warehouse_name=warehouse_name,
-                 reference_id=str(m.id)
+                 reference_id=str(m.id),
+                 request_id=self.request_id
              )
              return m
 
@@ -266,7 +331,8 @@ class InventoryService:
                     before_quantity=m.before_quantity,
                     after_quantity=m.after_quantity,
                     warehouse_name=warehouse_name,
-                    reference_id=str(m.id)
+                    reference_id=str(m.id),
+                    request_id=self.request_id
                 )
 
             else:
@@ -312,7 +378,8 @@ class InventoryService:
                         before_quantity=m.before_quantity,
                         after_quantity=m.after_quantity,
                         warehouse_name=warehouse_name,
-                        reference_id=str(m.id)
+                        reference_id=str(m.id),
+                        request_id=self.request_id
                     )
                     
                     remaining -= deduct
@@ -465,7 +532,8 @@ class InventoryService:
                 before_quantity=src_before,
                 after_quantity=src_after,
                 warehouse_name=source_wh,
-                reference_id=str(m_out.id)
+                reference_id=str(m_out.id),
+                request_id=self.request_id
             )
 
             LogService.log_inventory_event(
@@ -475,9 +543,9 @@ class InventoryService:
                 before_quantity=dst_before,
                 after_quantity=dst_after,
                 warehouse_name=dest_wh,
-                reference_id=str(m_in.id)
+                reference_id=str(m_in.id),
+                request_id=self.request_id
             )
-
 
         self.db.commit()
         if transfers_out:

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Request
 from app.dependencies import get_current_active_user
 from typing import List
 from sqlalchemy.orm import Session
@@ -15,7 +15,7 @@ router = APIRouter(
 )
 
 @router.get("/products", response_model=List[ProductResponse])
-def list_products(limit: int = None, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
+def list_products(request: Request, limit: int = None, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Retireve a list of products from the catalog.
     
@@ -26,12 +26,12 @@ def list_products(limit: int = None, db: Session = Depends(get_db), current_user
     Returns:
         List[ProductResponse]: A list of products.
     """
-    service = CatalogService(db=db)
+    service = CatalogService(db=db, request_id=request.state.request_id)
     products = service.list_products(limit=limit)
     return products
 
 @router.get("/products/{sku}", response_model=ProductResponse)
-def get_product_by_sku(sku: str, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
+def get_product_by_sku(request: Request, sku: str, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Retrieve a product by its SKU code.
 
@@ -42,18 +42,18 @@ def get_product_by_sku(sku: str, db: Session = Depends(get_db), current_user = D
     Returns:
         ProductResponse: The product details.
     """
-    service = CatalogService(db=db)
+    service = CatalogService(db=db, request_id=request.state.request_id)
     product = service.get_product_by_sku(sku=sku)
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     return product
 
 @router.post("/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-def create_product(product: ProductCreateRequest, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
+def create_product(request: Request, product: ProductCreateRequest, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Create a new product in the catalog.
     """
-    service = CatalogService(db=db)
+    service = CatalogService(db=db, request_id=request.state.request_id)
     try:
         new_product = service.create_product(
             sku=product.sku,
@@ -67,7 +67,7 @@ def create_product(product: ProductCreateRequest, db: Session = Depends(get_db),
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 @router.get("/warehouses", response_model=List[WarehouseResponse])
-def list_warehouses(limit: int = None, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
+def list_warehouses(request: Request, limit: int = None, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Return a list of warehouses.
 
@@ -75,12 +75,12 @@ def list_warehouses(limit: int = None, db: Session = Depends(get_db), current_us
         limit (int, optional): Maximum number of warehouses to return. If None, returns all warehouses.
         db (Session): Database session dependency.
     """
-    service = CatalogService(db=db)
+    service = CatalogService(db=db, request_id=request.state.request_id)
     warehouses = service.list_warehouses(limit=limit)
     return warehouses
 
 @router.get("/warehouses/{warehouse_id}", response_model=WarehouseResponse)
-def get_warehouse_by_id(warehouse_id: str, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
+def get_warehouse_by_id(request: Request, warehouse_id: str, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Retireve a warehouse by its ID.
 
@@ -91,18 +91,18 @@ def get_warehouse_by_id(warehouse_id: str, db: Session = Depends(get_db), curren
     Returns:
         WarehouseResponse: The warehouse details.
     """
-    service = CatalogService(db=db)
+    service = CatalogService(db=db, request_id=request.state.request_id)
     warehouse = service.get_warehouse_by_id(warehouse_id=warehouse_id)
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Warehouse not found")
     return warehouse
 
 @router.post("/warehouses", response_model=WarehouseResponse, status_code=status.HTTP_201_CREATED)
-def create_warehouse(warehouse: WarehouseCreateRequest, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
+def create_warehouse(request: Request, warehouse: WarehouseCreateRequest, db: Session = Depends(get_db), current_user = Depends(get_current_active_user)):
     """
     Create a new warehouse via API.
     """
-    service = CatalogService(db=db)
+    service = CatalogService(db=db, request_id=request.state.request_id)
     try:
         new_wh = service.create_warehouse(
             name=warehouse.name,

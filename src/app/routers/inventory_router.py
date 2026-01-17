@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Query
+from fastapi import APIRouter, Depends, status, HTTPException, Query, Request
 from app.dependencies import get_current_active_user
 from typing import Dict, Optional, List
 from sqlalchemy.orm import Session
@@ -14,6 +14,7 @@ router = APIRouter(
 
 @router.get("/stock", response_model=int)
 def get_stock(
+    request: Request,
     sku: str = Query(..., description="Product SKU"),
     warehouse_name: Optional[str] = Query(None, description="Warehouse Name"),
     db: Session = Depends(get_db),
@@ -22,7 +23,7 @@ def get_stock(
     """
     Get the current stock of a product in a specific warehouse.
     """
-    service = InventoryService(db=db)
+    service = InventoryService(db=db, request_id=request.state.request_id)
     try:
         return service.get_stock(product_sku=sku, warehouse_name=warehouse_name)
     except ValueError as e:
@@ -33,6 +34,7 @@ def get_stock(
 
 @router.get("/details", response_model=List[InventoryResponse])
 def get_inventory_details(
+    request: Request,
     sku: str = Query(..., description="Product SKU"),
     warehouse_name: Optional[str] = Query(None, description="Warehouse Name"),
     db: Session = Depends(get_db),
@@ -41,7 +43,7 @@ def get_inventory_details(
     """
     Get full inventory details + denormalized info.
     """
-    service = InventoryService(db=db)
+    service = InventoryService(db=db, request_id=request.state.request_id)
     try:
         result = service.get_inventory_record(product_sku=sku, warehouse_name=warehouse_name)
         if isinstance(result, list):
