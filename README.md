@@ -18,11 +18,14 @@ The PostgreSQL database is seeded with the following synthetic data:
 
 ## Key Features
 - **Secure Access**: User Authentication via OAuth2 (JWT) with password hashing.
+- **Request Tracing**: Unique `request_id` generated per request for complete audit trail correlation.
 - **Batch-Level Inventory**: Tracks stock by batch number to ensure traceability and expiry management.
 - **FIFO Logic**: Automatically enforces First-In-First-Out for stock deduction when no batch is specified.
 - **Catalog Management**: Full API support (`POST/GET`) for creating and managing Products and Warehouses.
 - **Movement Tracking**: Detailed logs of every inventory change (Inbound, Outbound, Transfer, Adjustments).
 - **Event Logging (MongoDB)**: Immutable audit logs for all state-changing operations and conversation history.
+- **Low Stock Alerts**: Built-in query methods to identify items below reorder/safety levels.
+- **Movement History**: Query movement records by product SKU or warehouse name.
 
 ## Hybrid Database Architecture
 
@@ -32,6 +35,7 @@ SmartSupply uses **PostgreSQL** as the "Source of Truth" for current state (Inve
 1.  **`conversation_logs`**: Traces User <-> Agent interactions (Intent, Tool Selection, Result).
 2.  **`audit_logs`**: Immutable record of all inventory and catalog changes.
     *   **Traceability**: Every batch movement is logged strictly with `before` and `after` quantities.
+    *   **Request Correlation**: All logs include `request_id` for end-to-end tracing.
     *   **Scope**: Covers `create_product`, `create_warehouse`, `inbound`, `outbound`, `transfer`, and `damage` events.
 
 ## Project Structure
@@ -58,9 +62,13 @@ src/
     *   `security.py`: Manages JWT creation and `bcrypt` password hashing.
     *   `dependencies.py`: Provides `get_current_active_user` to specific protect routes.
 *   **Service Layer**: The core business logic residing in `supply_service.py`.
-    *   `InventoryService`: Handles stock movements, FIFO logic, and batch validation.
+    *   `InventoryService`: Handles stock movements, FIFO logic, batch validation, and advanced queries.
+        *   Stock queries: `get_stock()`, `get_inventory_record()`, `get_low_stock()`
+        *   Movement history: `get_movements_by_sku()`, `get_movements_by_warehouse()`
     *   `CatalogService`: Manages product creation and warehouse lookups.
-    *   `LogService`: Write-only service that safely pushes immutable events to MongoDB.
+    *   `LogService`: Write-only service that safely pushes immutable events to MongoDB (all methods require `request_id`).
+*   **Middleware**:
+    *   `RequestIDMiddleware`: Generates unique `request_id` for each request, returned in `X-Request-ID` header.
 *   **Routers**:
     *   `catalog_router`: Manage Products and Warehouses (Protected).
     *   `inventory_router`: Query stock levels (Protected).
