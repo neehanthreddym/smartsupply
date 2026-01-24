@@ -1,7 +1,7 @@
 # SmartSupply: Hybrid-DB Supply Chain AI Agent API
 
 ## Project Overview
-SmartSupply is a robust FastAPI microservice designed to transform how supply chain managers interact with data. By integrating **PostgreSQL** for transactional inventory management and **MongoDB** for flexible audit logging, it provides a reliable and scalable foundation. The core of SmartSupply is an **Autonomous AI Agent** (built with LangChain/LangGraph) that empowers users to query stock levels and report anomalies using natural language.
+SmartSupply is a robust FastAPI microservice designed to transform how supply chain managers interact with data. By integrating **PostgreSQL** for transactional inventory management and **MongoDB** for flexible audit logging, it provides a reliable and scalable foundation. The core of SmartSupply is a **Routing Workflow AI Agent** that empowers users to query stock levels, manage inventory, and report anomalies using natural language through intelligent tool selection.
 
 ## Database Schema (PostgreSQL)
 
@@ -38,6 +38,41 @@ SmartSupply uses **PostgreSQL** as the "Source of Truth" for current state (Inve
     *   **Request Correlation**: All logs include `request_id` for end-to-end tracing.
     *   **Scope**: Covers `create_product`, `create_warehouse`, `inbound`, `outbound`, `transfer`, and `damage` events.
 
+## AI Agent Tools
+
+SmartSupply implements a **Routing Workflow** pattern where the AI agent intelligently selects the appropriate tool based on user intent. The tools layer (`app/tools/`) provides **12 specialized functions** that wrap service layer methods with gate-based access control.
+
+### Tool Categories by Gate Type
+
+#### **Read-Only Tools** (6 tools - No confirmation required)
+- `query_inventory_stock`: Check total stock levels (aggregate or by warehouse)
+- `query_inventory_details`: Get detailed inventory records with batch info and warehouse breakdown
+- `query_low_stock_items`: Identify products below reorder/safety stock levels
+- `query_movement_history`: View transaction history filtered by product or warehouse
+- `query_product_catalog`: Look up product information or browse full catalog
+- `query_warehouse_catalog`: Look up warehouse details or list all locations
+
+#### **Soft Gate Tools** (3 tools - Awareness confirmation)
+- `create_product`: Add new products to the catalog
+- `create_warehouse`: Register new warehouse locations
+- `adjust_inventory_inbound`: Receive stock shipments (increases quantity)
+
+#### **Hard Gate Tools** (3 tools - Strict confirmation required)
+- `report_inventory_anomaly`: Log damage, theft, or expiration (creates audit trail)
+- `adjust_inventory_outbound`: Ship stock from warehouses (FIFO logic)
+- `transfer_inventory`: Move stock between warehouse locations (FIFO logic)
+
+### Tool Response Format
+All tools return a consistent `ToolResponse` schema:
+```python
+{
+    "success": bool,
+    "data": Any,
+    "message": str,
+    "gate_type": "read_only" | "soft_gate" | "hard_gate"
+}
+```
+
 ## Project Structure
 
 The project follows a clean, modular architecture:
@@ -52,6 +87,7 @@ src/
     ├── repositories/   # Data access layer
     ├── schemas/        # Pydantic validation models
     ├── services/       # Business logic (SupplyService)
+    ├── tools/          # AI Agent Tools (12 functions with gate-based access)
     └── utils/          # Utilities
 ```
 
@@ -67,6 +103,10 @@ src/
         *   Movement history: `get_movements_by_sku()`, `get_movements_by_warehouse()`
     *   `CatalogService`: Manages product creation and warehouse lookups.
     *   `LogService`: Write-only service that safely pushes immutable events to MongoDB (all methods require `request_id`).
+*   **Tools Layer**: AI agent routing workflow implementation in `tools/`.
+    *   `inventory_tools.py`: 12 wrapper functions organized by gate type (read-only, soft gate, hard gate).
+    *   `schemas.py`: Pydantic input validators and ToolResponse schema.
+    *   Functions wrap service layer methods with enhanced docstrings for LLM tool selection.
 *   **Middleware**:
     *   `RequestIDMiddleware`: Generates unique `request_id` for each request, returned in `X-Request-ID` header.
 *   **Routers**:
