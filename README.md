@@ -17,8 +17,10 @@ The PostgreSQL database is seeded with the following synthetic data:
 *   **Movement History**: 320 records
 
 ## Key Features
+- **🤖 AI Agent Interface**: Natural language inventory management via LangChain routing workflow agent (Ollama LLM)
 - **Secure Access**: User Authentication via OAuth2 (JWT) with password hashing.
 - **Request Tracing**: Unique `request_id` generated per request for complete audit trail correlation.
+- **Gate-Based Access Control**: 12 specialized tools with read-only, soft-gate, and hard-gate permission levels
 - **Batch-Level Inventory**: Tracks stock by batch number to ensure traceability and expiry management.
 - **FIFO Logic**: Automatically enforces First-In-First-Out for stock deduction when no batch is specified.
 - **Catalog Management**: Full API support (`POST/GET`) for creating and managing Products and Warehouses.
@@ -73,6 +75,57 @@ All tools return a consistent `ToolResponse` schema:
 }
 ```
 
+## AI Agent Implementation
+
+SmartSupply implements a **LangChain Routing Workflow Agent** that interprets natural language queries and intelligently selects from 12 specialized inventory tools.
+
+### Architecture Components
+- **`agent_setup.py`**: Agent factory using Ollama (`llama3.1`) with configurable temperature and system prompts
+- **`agent_example.py`**: Interactive REPL for testing agent conversations
+- **`langchain_tools.py`**: LangChain `@tool` decorators wrapping inventory functions for agent discovery
+- **`inventory_tools.py`**: Core tool implementations with enhanced docstrings for LLM understanding
+
+### Agent Behavior
+- **Read-Only Tools**: Execute immediately without confirmation
+- **Soft Gate Tools**: Request user awareness before proceeding
+- **Hard Gate Tools**: Require explicit user confirmation and explain impact
+
+### Current Status
+✅ **Working**: Catalog browsing, exact-match queries, stock reporting, category filtering  
+⚠️ **Limitations**: See Known Limitations section below
+
+## Known Limitations
+
+Based on initial testing with 20+ queries, the following limitations have been identified:
+
+### 🚨 Critical Issues
+1. **Exact Name Matching Required**
+   - Agent requires exact SKU and warehouse names (e.g., "Memphis Distribution Center" not "Memphis")
+   - No fuzzy matching or alias support
+   - Users must browse catalog first to find correct entity names
+
+2. **Error Handling Gaps**
+   - Some queries fail with `'NoneType' object has no attribute 'id'` errors
+   - Technical exceptions exposed to end users instead of friendly messages
+   - Missing null checks in service layer methods
+
+3. **Response Formatting**
+   - Complex queries (e.g., movement history) return raw JSON dumps
+   - Lack of natural language synthesis for large result sets
+   - No automatic summarization for 50+ records
+
+### ⚠️ Medium Priority Issues
+4. **Missing Catalog Discovery Flow**
+   - Agent doesn't auto-suggest alternatives when exact match fails
+   - No "did you mean?" functionality for typos or partial names
+
+### Recommendations
+- **Short Term**: Add defensive null checks, improve error messages, implement fuzzy matching
+- **Medium Term**: Enhance LLM prompts for better response formatting and auto-suggest logic
+- **Long Term**: Add semantic search for product/warehouse lookup
+
+> 📋 **Full Analysis**: See `docs/agent_analysis_report.md` for detailed test results and root cause analysis.
+
 ## Project Structure
 
 The project follows a clean, modular architecture:
@@ -80,14 +133,20 @@ The project follows a clean, modular architecture:
 ```
 src/
 └── app/
+    ├── agent/          # AI Agent Implementation (LangChain)
+    │   ├── agent_setup.py     # Agent factory & system prompts
+    │   └── agent_example.py   # Interactive REPL for testing
     ├── core/           # Security & Config (JWT, Hashing)
-    ├── database/       # Database connection
+    ├── database/       # Database connection (PostgreSQL + MongoDB)
     ├── models/         # SQLAlchemy ORM models (User, Inventory, etc.)
     ├── routers/        # API Endpoints (Auth, User, Catalog, Inventory, Movement)
     ├── repositories/   # Data access layer
     ├── schemas/        # Pydantic validation models
-    ├── services/       # Business logic (SupplyService)
-    ├── tools/          # AI Agent Tools (12 functions with gate-based access)
+    ├── services/       # Business logic (CatalogService, InventoryService, LogService)
+    ├── tools/          # AI Agent Tools Layer
+    │   ├── inventory_tools.py  # 12 core tool implementations
+    │   ├── langchain_tools.py  # LangChain @tool decorators
+    │   └── schemas.py          # ToolResponse & validators
     └── utils/          # Utilities
 ```
 
@@ -103,8 +162,12 @@ src/
         *   Movement history: `get_movements_by_sku()`, `get_movements_by_warehouse()`
     *   `CatalogService`: Manages product creation and warehouse lookups.
     *   `LogService`: Write-only service that safely pushes immutable events to MongoDB (all methods require `request_id`).
+*   **Agent Layer**: LangChain conversational agent implementation in `agent/`.
+    *   `agent_setup.py`: Agent factory using Ollama (`llama3.1`) with system prompts for gate-based workflow.
+    *   `agent_example.py`: Interactive command-line REPL for testing agent conversations.
 *   **Tools Layer**: AI agent routing workflow implementation in `tools/`.
     *   `inventory_tools.py`: 12 wrapper functions organized by gate type (read-only, soft gate, hard gate).
+    *   `langchain_tools.py`: LangChain `@tool` decorators for agent tool discovery.
     *   `schemas.py`: Pydantic input validators and ToolResponse schema.
     *   Functions wrap service layer methods with enhanced docstrings for LLM tool selection.
 *   **Middleware**:
@@ -116,17 +179,43 @@ src/
 
 ## How to Run
 
-1.  **Install Dependencies**:
+### Prerequisites
+1.  **Install Ollama**: Download from [ollama.ai](https://ollama.ai) for local LLM inference
+2.  **Pull LLM Model**:
+    ```bash
+    ollama pull llama3.1
+    ```
+3.  **Install Dependencies**:
     ```bash
     pip install -r requirements.txt
     ```
-2.  **Start the Server**:
+
+### Running the FastAPI Server
+1.  **Start the Server**:
     ```bash
     uvicorn main:app --reload
     ```
     The API will be available at `http://localhost:8000`. API Docs at `http://localhost:8000/docs`.
 
-### Authentication Usage
-1.  **Register**: POST to `/register` with email and password.
-2.  **Login**: POST to `/login` (form-data) to get a Bearer Token.
-3.  **Access API**: Include the token in the `Authorization` header (`Bearer <token>`) for all Inventory/Catalog requests.
+2.  **Authentication Usage**:
+    *   **Register**: POST to `/register` with email and password.
+    *   **Login**: POST to `/login` (form-data) to get a Bearer Token.
+    *   **Access API**: Include the token in the `Authorization` header (`Bearer <token>`) for all Inventory/Catalog requests.
+
+### Running the AI Agent (Interactive)
+1.  **Start Agent REPL**:
+    ```bash
+    python3 -m app.agent.agent_example
+    ```
+2.  **Chat with Agent**:
+    ```
+    You: Show me all products in the catalog
+    Agent: There are currently 23 products available...
+    
+    You: What's the stock for Doritos at Memphis Distribution Center?
+    Agent: There are currently 1036 units of Doritos (DOR-001) available...
+    
+    You: exit
+    ```
+
+> 💡 **Tip**: Use exact product SKUs (e.g., `DOR-001`) and full warehouse names (e.g., `Memphis Distribution Center`) for best results. See Known Limitations section for details.

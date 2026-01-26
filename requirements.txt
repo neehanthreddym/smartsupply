@@ -11,4 +11,7 @@ python-multipart
 pyjwt
 pymongo
 pymongo[srv]
+langchain
+langchain-community
+langchain-ollama
 -e .
