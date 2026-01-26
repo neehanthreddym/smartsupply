@@ -3,6 +3,11 @@
 ## Project Overview
 SmartSupply is a robust FastAPI microservice designed to transform how supply chain managers interact with data. By integrating **PostgreSQL** for transactional inventory management and **MongoDB** for flexible audit logging, it provides a reliable and scalable foundation. The core of SmartSupply is a **Routing Workflow AI Agent** that empowers users to query stock levels, manage inventory, and report anomalies using natural language through intelligent tool selection.
 
+## Architecture Workflow
+<p align="center">
+  <img src="smartsupply_workflow.drawio.png" alt="SmartSupply Architecture Workflow" width="700"/>
+</p>
+
 ## Database Schema (PostgreSQL)
 
 > ⚠️ **Note:** The data shown in this diagram is **synthetic (fake)** and was **generated using a Python script** for development and demonstration purposes only.
